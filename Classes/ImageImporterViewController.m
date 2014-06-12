@@ -9,6 +9,7 @@
 // Modify this to point to your default import location
 
 #import "ImageImporterViewController.h"
+#import <AssetsLibrary/AssetsLibrary.h>
 
 // USER_HOME is set automatically in build settings ('Preprocessor Definitions')
 #ifndef USER_HOME
@@ -127,38 +128,36 @@
 
 // Import the specified image
 - (void)importImage:(NSString *)file
-{    
-    fileLabel.text = [file lastPathComponent]; 
-    UIImage *image = [UIImage imageWithContentsOfFile:file];
-    UIImageWriteToSavedPhotosAlbum(image, self, @selector(image:didFinishSavingWithError:contextInfo:), nil);  
-}
-
-// Image import completion handler - import next image unless user has cancelled
-- (void)image:(UIImage *)image didFinishSavingWithError:(NSError *)error contextInfo:(void *)contextInfo
 {
-    if (error)
-    {
-        self.alertView.message = error.localizedDescription;
-        [self.alertView show]; 
-        [self updateUI:NO];
-        fileLabel.hidden = NO;
-        fileLabel.text = @"Error!";
-        return;        
-    }
+    fileLabel.text = [file lastPathComponent];
+    NSData *image = [[[NSData alloc] initWithContentsOfFile:file] autorelease];
+    ALAssetsLibrary *al = [[[ALAssetsLibrary alloc] init] autorelease];    
+    [al writeImageDataToSavedPhotosAlbum:image metadata:nil completionBlock:^(NSURL *assetURL, NSError *error) {
+        if (error)
+        {
+            self.alertView.message = error.localizedDescription;
+            [self.alertView show];
+            [self updateUI:NO];
+            fileLabel.hidden = NO;
+            fileLabel.text = @"Error!";
+            return;
+        }
+        
+        imagesProcessed++;
+        progressView.progress = (float)imagesProcessed / numImages;
+        
+        if (shouldContinue)
+        {
+            [self importNextImage];
+        }
+        else
+        {
+            [self updateUI:NO];
+            fileLabel.hidden = NO;
+            fileLabel.text = @"Cancelled!";
+        }
+    }];
     
-    imagesProcessed++;
-    progressView.progress = (float)imagesProcessed / numImages;
-    
-    if (shouldContinue)
-    {
-        [self importNextImage];
-    }
-    else
-    {
-        [self updateUI:NO];
-        fileLabel.hidden = NO;
-        fileLabel.text = @"Cancelled!";
-    }
 }
 
 // Update UI elements
